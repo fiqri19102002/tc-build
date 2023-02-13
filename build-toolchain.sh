@@ -12,8 +12,8 @@ err() {
 # Build LLVM
 msg "Building LLVM..."
 ./build-llvm.py \
-    --branch "release/16.x" \
-    --clang-vendor "STRIX" \
+    --ref "release/16.x" \
+    --vendor-string "STRIX" \
     --defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc) LLVM_PARALLEL_LINK_JOBS=$(nproc) CMAKE_C_FLAGS=-O3 CMAKE_CXX_FLAGS=-O3 \
     --lto "full" \
     --pgo "kernel-defconfig" \
@@ -21,7 +21,7 @@ msg "Building LLVM..."
     --no-ccache \
     --quiet-cmake \
     --shallow-clone \
-    --targets "ARM;AArch64;X86" 2>&1
+    --targets ARM AArch64 X86
 
 # Check if the final clang binary exists or not.
 for file in install/bin/clang-1*
