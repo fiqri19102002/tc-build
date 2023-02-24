@@ -19,7 +19,7 @@ from urllib.error import URLError
 import utils
 
 # This is a known good revision of LLVM for building the kernel
-GOOD_REVISION = '5351878ba1963a84600df3a9e907b458b0529851'
+GOOD_REVISION = 'c972e1c8b59b144599b47e8a7946ff8e531a2049'
 
 
 class Directories:
@@ -541,7 +541,7 @@ def check_cc_ld_variables(root_folder):
         ld = os.environ['LD']
         if "clang" in cc.stem and clang_version(cc, root_folder) >= 30900:
             ld = shutil.which(ld)
-        if linker_test(cc, ld):
+        if not linker_test(cc, ld):
             print(
                 f"LD won't work with {cc}, saving you from yourself by ignoring LD value",
                 flush=True)
@@ -566,7 +566,7 @@ def check_cc_ld_variables(root_folder):
         # and we're using gcc, try to use gold
         else:
             ld = "gold"
-            if linker_test(cc, ld):
+            if not linker_test(cc, ld):
                 ld = None
 
     # Print what binaries we are using to compile/link with so the user can
