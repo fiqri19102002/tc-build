@@ -15,6 +15,7 @@ msg "Building LLVM..."
     --ref "release/16.x" \
     --vendor-string "STRIX" \
     --defines LLVM_PARALLEL_COMPILE_JOBS=$(nproc) LLVM_PARALLEL_LINK_JOBS=$(nproc) CMAKE_C_FLAGS=-O3 CMAKE_CXX_FLAGS=-O3 \
+    --projects "clang;lld" \
     --lto "full" \
     --pgo "kernel-defconfig" \
     --no-update \
