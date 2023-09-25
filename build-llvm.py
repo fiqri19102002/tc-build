@@ -14,10 +14,10 @@ from tc_build.kernel import KernelBuilder, LinuxSourceManager, LLVMKernelBuilder
 from tc_build.tools import HostTools, StageTools
 
 # This is a known good revision of LLVM for building the kernel
-GOOD_REVISION = 'b5983a38cbf4eb405fe9583ab89e15db1dcfa173'
+GOOD_REVISION = 'e280e406c2e34ce29e1e71da7cd3a284ea112ce8'
 
 # The version of the Linux kernel that the script downloads if necessary
-DEFAULT_KERNEL_FOR_PGO = (6, 4, 0)
+DEFAULT_KERNEL_FOR_PGO = (6, 5, 0)
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 clone_options = parser.add_mutually_exclusive_group()
@@ -540,7 +540,7 @@ if (use_bootstrap := not args.build_stage1_only):
 
     bootstrap.check_dependencies()
     bootstrap.configure()
-    bootstrap.build()
+    bootstrap.build('distribution')
 
 # If the user did not specify CMAKE_C_FLAGS or CMAKE_CXX_FLAGS, add them as empty
 # to paste stage 2 to ensure there are no environment issues (since CFLAGS and CXXFLAGS
@@ -571,7 +571,7 @@ if args.pgo:
 
     tc_build.utils.print_header('Building LLVM (instrumented)')
     instrumented.configure()
-    instrumented.build()
+    instrumented.build('all' if args.full_toolchain else 'distribution')
 
     tc_build.utils.print_header('Generating PGO profiles')
     pgo_builders = []

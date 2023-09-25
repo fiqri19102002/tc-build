@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import contextlib
-import glob
 import os
 from pathlib import Path
 import platform
@@ -134,7 +133,7 @@ class LLVMBuilder(Builder):
         if mode == 'instrumentation':
             clang_inst.unlink()
 
-    def build(self):
+    def build(self, build_target='all'):
         if not self.folders.build:
             raise RuntimeError('No build folder set for build()?')
         if not Path(self.folders.build, 'build.ninja').exists():
@@ -143,7 +142,7 @@ class LLVMBuilder(Builder):
             raise RuntimeError('BOLT requested without a builder?')
 
         build_start = time.time()
-        ninja_cmd = ['ninja', '-C', self.folders.build]
+        ninja_cmd = ['ninja', '-C', self.folders.build, build_target]
         self.run_cmd(ninja_cmd)
 
         if self.check_targets:
@@ -255,7 +254,7 @@ class LLVMBuilder(Builder):
         # Clear Linux needs a different target to find all of the C++ header files, otherwise
         # stage 2+ compiles will fail without this
         # We figure this out based on the existence of x86_64-generic-linux in the C++ headers path
-        if glob.glob('/usr/include/c++/*/x86_64-generic-linux'):
+        if list(Path('/usr/include/c++').glob('*/x86_64-generic-linux')):
             self.cmake_defines['LLVM_HOST_TRIPLE'] = 'x86_64-generic-linux'
 
         # By default, the Linux triples are for glibc, which might not work on
@@ -364,6 +363,17 @@ class LLVMSlimBuilder(LLVMBuilder):
         }
 
         slim_llvm_defines = {
+            # Tools needed by bootstrapping
+            'LLVM_DISTRIBUTION_COMPONENTS': ';'.join(['clang',
+                                                      'clang-resource-headers',
+                                                      'lld',
+                                                      'llvm-ar',
+                                                      'llvm-nm',
+                                                      'llvm-ranlib',
+                                                      'llvm-objcopy',
+                                                      'llvm-objdump',
+                                                      'llvm-readelf',
+                                                      'llvm-strip']),
             # Don't build bindings; they are for other languages that the kernel does not use
             'LLVM_ENABLE_BINDINGS': 'OFF',
             # Don't build Ocaml documentation
@@ -375,6 +385,10 @@ class LLVMSlimBuilder(LLVMBuilder):
             # Don't include example build targets to save on cmake cycles
             'LLVM_INCLUDE_EXAMPLES': 'OFF',
         }
+        if self.project_is_enabled('bolt'):
+            slim_llvm_defines['LLVM_DISTRIBUTION_COMPONENTS'] += ';bolt'
+        if self.project_is_enabled('compiler-rt'):
+            slim_llvm_defines['LLVM_DISTRIBUTION_COMPONENTS'] += ';llvm-profdata;profile'
 
         slim_compiler_rt_defines = {
             # Don't build libfuzzer when compiler-rt is enabled, it invokes cmake again and we don't use it
