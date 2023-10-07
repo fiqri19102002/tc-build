@@ -226,6 +226,16 @@ class LLVMBuilder(Builder):
 
         if self.tools.ar:
             self.cmake_defines['CMAKE_AR'] = self.tools.ar
+        # Utilize thin archives to save space. Use the deprecated -T for
+        # compatibility with binutils<2.38 and llvm-ar<14. Unfortunately, thin
+        # archives make compiler-rt archives not easily distributable, so we
+        # disable the optimization when compiler-rt is enabled and there is an
+        # install directory. Ideally thin archives should still be usable for
+        # non-compiler-rt projects.
+        if not (self.folders.install and self.project_is_enabled('compiler-rt')):
+            self.cmake_defines['CMAKE_CXX_ARCHIVE_CREATE'] = '<CMAKE_AR> DqcT <TARGET> <OBJECTS>'
+        self.cmake_defines['CMAKE_CXX_ARCHIVE_FINISH'] = 'true'
+
         if self.tools.ranlib:
             self.cmake_defines['CMAKE_RANLIB'] = self.tools.ranlib
         if 'CMAKE_BUILD_TYPE' not in self.cmake_defines:
@@ -362,18 +372,29 @@ class LLVMSlimBuilder(LLVMBuilder):
             'CLANG_PLUGIN_SUPPORT': 'OFF',
         }
 
+        llvm_build_runtime = self.cmake_defines.get('LLVM_BUILD_RUNTIME', 'ON') == 'ON'
+        build_compiler_rt = self.project_is_enabled('compiler-rt') and llvm_build_runtime
+
+        distribution_components = [
+            'clang',
+            'clang-resource-headers',
+            'lld',
+            'llvm-ar',
+            'llvm-nm',
+            'llvm-objcopy',
+            'llvm-objdump',
+            'llvm-ranlib',
+            'llvm-readelf',
+            'llvm-strip',
+        ]
+        if self.project_is_enabled('bolt'):
+            distribution_components.append('bolt')
+        if build_compiler_rt:
+            distribution_components += ['llvm-profdata', 'profile']
+
         slim_llvm_defines = {
             # Tools needed by bootstrapping
-            'LLVM_DISTRIBUTION_COMPONENTS': ';'.join(['clang',
-                                                      'clang-resource-headers',
-                                                      'lld',
-                                                      'llvm-ar',
-                                                      'llvm-nm',
-                                                      'llvm-ranlib',
-                                                      'llvm-objcopy',
-                                                      'llvm-objdump',
-                                                      'llvm-readelf',
-                                                      'llvm-strip']),
+            'LLVM_DISTRIBUTION_COMPONENTS': ';'.join(distribution_components),
             # Don't build bindings; they are for other languages that the kernel does not use
             'LLVM_ENABLE_BINDINGS': 'OFF',
             # Don't build Ocaml documentation
@@ -385,10 +406,6 @@ class LLVMSlimBuilder(LLVMBuilder):
             # Don't include example build targets to save on cmake cycles
             'LLVM_INCLUDE_EXAMPLES': 'OFF',
         }
-        if self.project_is_enabled('bolt'):
-            slim_llvm_defines['LLVM_DISTRIBUTION_COMPONENTS'] += ';bolt'
-        if self.project_is_enabled('compiler-rt'):
-            slim_llvm_defines['LLVM_DISTRIBUTION_COMPONENTS'] += ';llvm-profdata;profile'
 
         slim_compiler_rt_defines = {
             # Don't build libfuzzer when compiler-rt is enabled, it invokes cmake again and we don't use it
@@ -403,8 +420,7 @@ class LLVMSlimBuilder(LLVMBuilder):
         self.cmake_defines.update(slim_llvm_defines)
         if self.project_is_enabled('clang'):
             self.cmake_defines.update(slim_clang_defines)
-        if self.project_is_enabled('compiler-rt') and self.cmake_defines.get(
-                'LLVM_BUILD_RUNTIME', 'ON') == 'ON':
+        if build_compiler_rt:
             self.cmake_defines.update(slim_compiler_rt_defines)
 
         super().configure()
