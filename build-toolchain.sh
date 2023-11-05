@@ -20,7 +20,6 @@ msg "Building LLVM..."
     --lto "full" \
     --no-update \
     --no-ccache \
-    --projects "clang;lld" \
     --pgo "kernel-defconfig" \
     --ref "release/16.x" \
     --shallow-clone \
